@@ -1,0 +1,30 @@
+name: Update Playlist
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'  # 每12小时运行一次
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: 下载并修改播放列表
+        run: |
+          curl -s https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_hd.m3u > temp.m3u
+          sed 's|rtp://|http://192.168.2.1:8888/udp/|g' temp.m3u > modified_playlist.m3u
+          rm temp.m3u
+
+      - name: 提交修改（如果有变化）
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add modified_playlist.m3u
+          if ! git diff --staged --quiet; then
+            git commit -m "更新修改后的播放列表"
+            git push
+          else
+            echo "没有需要提交的变化"
+          fi
