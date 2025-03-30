@@ -2,14 +2,16 @@ name: Update Playlist
 
 on:
   schedule:
-    - cron: '0 */9 * * *'  # 每9小时运行一次
+    - cron: '0 * * * *'  # 每小时运行一次
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}  # 显式使用 GITHUB_TOKEN
 
       - name: 下载并修改播放列表
         run: |
