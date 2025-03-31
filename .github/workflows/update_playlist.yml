@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: '0 */12 * * *'  # 每12小时运行一次
 
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -11,27 +12,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}  # 显式使用 GITHUB_TOKEN
 
-      - name: 下载并修改第一个播放列表 (HD)
+      - name: 下载并修改播放列表
         run: |
-          curl -s https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_hd.m3u > temp_hd.m3u
-          sed 's|rtp://|http://192.168.2.1:8888/udp/|g' temp_hd.m3u > modified_playlist_hd.m3u
-          rm temp_hd.m3u
-
-      - name: 下载并修改第二个播放列表 (All)
-        run: |
-          curl -s https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_all.m3u > temp_all.m3u
-          sed 's|rtp://|http://192.168.2.1:8888/udp/|g' temp_all.m3u > modified_playlist_all.m3u
-          rm temp_all.m3u
+          curl -s https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_hd.m3u > temp.m3u
+          sed 's|rtp://|http://192.168.2.1:8888/udp/|g' temp.m3u > modified_playlist.m3u
+          rm temp.m3u
 
       - name: 提交修改（如果有变化）
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add modified_playlist_hd.m3u modified_playlist_all.m3u
+          git add modified_playlist.m3u
           if ! git diff --staged --quiet; then
-            git commit -m "更新修改后的播放列表 (HD 和 All)"
+            git commit -m "更新修改后的播放列表"
             git push
           else
             echo "没有需要提交的变化"
