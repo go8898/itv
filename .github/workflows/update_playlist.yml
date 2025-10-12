@@ -17,7 +17,7 @@ jobs:
       - name: 下载并修改播放列表
         run: |
           curl -s https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_hd.m3u > temp.m3u
-          sed 's|rtp://|http://192.168.2.6:5140/udp/|g' temp.m3u > modified_playlist.m3u
+          sed 's|rtp://|http://192.168.2.1:8888/udp/|g' temp.m3u > modified_playlist.m3u
           rm temp.m3u
 
       - name: 提交修改（如果有变化）
