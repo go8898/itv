@@ -2,44 +2,44 @@ name: Update Playlists
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # 每天UTC 6:00运行
-  workflow_dispatch:      # 允许手动触发执行
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    # 必须添加这个权限声明，否则 GITHUB_TOKEN 可能无法推送代码
+    permissions:
+      contents: write
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - name: 下载、过滤、修改并合并播放列表
         run: |
-          # 1. 初始化最终的合并文件
+          # 1. 创建新文件并写入头信息
           echo "#EXTM3U" > modified_playlist.m3u
 
-          # 定义需要处理的资源列表
           urls=(
             "https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_hd.m3u"
             "https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/refs/heads/master/GuangdongIPTV_rtp_4k.m3u"
           )
 
           for src in "${urls[@]}"; do
-            echo "正在处理并合并: $src"
-            
-            # 下载原始文件
-            curl -s "$src" > temp.m3u
-            
-            # 2. 核心处理逻辑：
-            # - 过滤 AVS2 或 CAVS (删除匹配行及其下一行)
-            # - 将 rtp:// 替换为内网代理 http://192.168.2.6:8888/rtp/
-            # - 剔除每个子文件自带的 #EXTM3U 标记，避免合并冲突
-            sed '/AVS2\|CAVS/{N;d;}' temp.m3u | \
-            sed 's|rtp://|http://192.168.2.6:8888/rtp/|g' | \
-            grep -v "#EXTM3U" >> modified_playlist.m3u
-            
-            rm temp.m3u
+            echo "正在处理: $src"
+            # 使用 -f 确保 curl 遇到 404 等错误时直接返回非零状态
+            if curl -sf "$src" > temp.m3u; then
+              # 处理逻辑：过滤 AVS2/CAVS -> 替换 IP -> 剔除重复头
+              sed '/AVS2\|CAVS/{N;d;}' temp.m3u | \
+              sed 's|rtp://|http://192.168.2.6:8888/rtp/|g' | \
+              grep -v "#EXTM3U" >> modified_playlist.m3u
+            else
+              echo "警告: 无法下载 $src，跳过此源"
+            fi
+            rm -f temp.m3u
           done
 
       - name: 提交修改
@@ -47,12 +47,13 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
-          # 仅跟踪固定的文件名
           git add modified_playlist.m3u
           
-          if ! git diff --staged --quiet; then
-            git commit -m "自动更新播放列表：合并HD/4K并过滤AVS2/CAVS"
-            git push
+          # 检查是否有实际变化
+          if git diff --staged --quiet; then
+            echo "没有检测到任何内容变化，无需更新。"
           else
-            echo "内容无变化，无需更新"
+            git commit -m "自动更新播放列表：合并并过滤 AVS2/CAVS"
+            # 推送失败通常是因为权限，这里尝试使用默认配置推送
+            git push
           fi
