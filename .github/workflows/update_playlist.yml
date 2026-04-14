@@ -13,8 +13,8 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-  
-          - name: 下载、过滤、修改并合并播放列表
+
+      - name: 下载、过滤、修改并合并播放列表
         run: |
           # 1. 初始化合并后的文件，先写入 M3U 文件头
           echo "#EXTM3U" > playlist_all.m3u
@@ -34,8 +34,7 @@ jobs:
             # 过滤 AVS2 (删除匹配行及其下一行)
             sed '/AVS2/{N;d;}' temp.m3u > filtered.m3u
             
-            # 转换 rtp:// 为代理格式
-            # 注意：合并时我们要去掉每个子文件自带的 #EXTM3U 行，避免重复
+            # 转换 rtp:// 为代理格式并追加，剔除重复的文件头
             sed 's|rtp://|http://192.168.2.6:8888/rtp/|g' filtered.m3u | grep -v "#EXTM3U" >> playlist_all.m3u
             
             rm temp.m3u filtered.m3u
