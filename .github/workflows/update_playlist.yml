@@ -16,10 +16,10 @@ jobs:
 
       - name: 下载、过滤、修改并合并播放列表
         run: |
-          # 1. 初始化合并后的文件，先写入 M3U 文件头
-          echo "#EXTM3U" > playlist_all.m3u
+          # 1. 初始化最终的合并文件
+          echo "#EXTM3U" > modified_playlist.m3u
 
-          # 定义需要处理的资源列表 (原始链接)
+          # 定义需要处理的资源列表
           urls=(
             "https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_hd.m3u"
             "https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/refs/heads/master/GuangdongIPTV_rtp_4k.m3u"
@@ -28,28 +28,31 @@ jobs:
           for src in "${urls[@]}"; do
             echo "正在处理并合并: $src"
             
-            # 下载文件
+            # 下载原始文件
             curl -s "$src" > temp.m3u
             
-            # 过滤 AVS2 (删除匹配行及其下一行)
-            sed '/AVS2/{N;d;}' temp.m3u > filtered.m3u
+            # 2. 核心处理逻辑：
+            # - 过滤 AVS2 或 CAVS (删除匹配行及其下一行)
+            # - 将 rtp:// 替换为内网代理 http://192.168.2.6:8888/rtp/
+            # - 剔除每个子文件自带的 #EXTM3U 标记，避免合并冲突
+            sed '/AVS2\|CAVS/{N;d;}' temp.m3u | \
+            sed 's|rtp://|http://192.168.2.6:8888/rtp/|g' | \
+            grep -v "#EXTM3U" >> modified_playlist.m3u
             
-            # 转换 rtp:// 为代理格式并追加，剔除重复的文件头
-            sed 's|rtp://|http://192.168.2.6:8888/rtp/|g' filtered.m3u | grep -v "#EXTM3U" >> playlist_all.m3u
-            
-            rm temp.m3u filtered.m3u
+            rm temp.m3u
           done
 
-      - name: 提交合并后的文件
+      - name: 提交修改
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
-          git add playlist_all.m3u
+          # 仅跟踪固定的文件名
+          git add modified_playlist.m3u
           
           if ! git diff --staged --quiet; then
-            git commit -m "自动合并更新：HD & 4K 播放列表"
+            git commit -m "自动更新播放列表：合并HD/4K并过滤AVS2/CAVS"
             git push
           else
-            echo "内容无变化，跳过提交"
+            echo "内容无变化，无需更新"
           fi
