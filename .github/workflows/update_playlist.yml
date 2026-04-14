@@ -2,8 +2,8 @@ name: Update Playlists
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # 
-
+    - cron: '0 6 * * *'  # 每天UTC 6:00运行
+  workflow_dispatch:      # 允许手动触发执行
 
 jobs:
   update:
@@ -12,22 +12,45 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # 显式使用 GITHUB_TOKEN
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 下载并修改播放列表
+- name: 下载、过滤、修改并合并播放列表
         run: |
-          curl -s https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_hd.m3u > temp.m3u
-          sed 's|rtp://|http://192.168.2.6:8888/rtp/|g' temp.m3u > modified_playlist.m3u
-          rm temp.m3u
+          # 1. 初始化合并后的文件，先写入 M3U 文件头
+          echo "#EXTM3U" > playlist_all.m3u
 
-      - name: 提交修改（如果有变化）
+          # 定义需要处理的资源列表 (原始链接)
+          urls=(
+            "https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_hd.m3u"
+            "https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/refs/heads/master/GuangdongIPTV_rtp_4k.m3u"
+          )
+
+          for src in "${urls[@]}"; do
+            echo "正在处理并合并: $src"
+            
+            # 下载文件
+            curl -s "$src" > temp.m3u
+            
+            # 过滤 AVS2 (删除匹配行及其下一行)
+            sed '/AVS2/{N;d;}' temp.m3u > filtered.m3u
+            
+            # 转换 rtp:// 为代理格式
+            # 注意：合并时我们要去掉每个子文件自带的 #EXTM3U 行，避免重复
+            sed 's|rtp://|http://192.168.2.6:8888/rtp/|g' filtered.m3u | grep -v "#EXTM3U" >> playlist_all.m3u
+            
+            rm temp.m3u filtered.m3u
+          done
+
+      - name: 提交合并后的文件
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add modified_playlist.m3u
+          
+          git add playlist_all.m3u
+          
           if ! git diff --staged --quiet; then
-            git commit -m "更新修改后的播放列表"
+            git commit -m "自动合并更新：HD & 4K 播放列表"
             git push
           else
-            echo "没有需要提交的变化"
+            echo "内容无变化，跳过提交"
           fi
