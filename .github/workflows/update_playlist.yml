@@ -13,8 +13,8 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-
-- name: 下载、过滤、修改并合并播放列表
+  
+          - name: 下载、过滤、修改并合并播放列表
         run: |
           # 1. 初始化合并后的文件，先写入 M3U 文件头
           echo "#EXTM3U" > playlist_all.m3u
