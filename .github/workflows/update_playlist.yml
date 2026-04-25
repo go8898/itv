@@ -34,7 +34,7 @@ jobs:
             if curl -sf "$src" > temp.m3u; then
               # 处理逻辑：过滤 AVS2/CAVS -> 替换 IP -> 剔除重复头
               sed '/AVS2\|CAVS/{N;d;}' temp.m3u | \
-              sed 's|rtp://|http://192.168.2.6:8888/rtp/|g' | \
+              sed 's|rtp://|http://192.168.2.1:8888/rtp/|g' | \
               grep -v "#EXTM3U" >> modified_playlist.m3u
             else
               echo "警告: 无法下载 $src，跳过此源"
